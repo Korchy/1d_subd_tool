@@ -6,6 +6,12 @@
 #
 # Version history:
 #   2022.03.20 - 1.0.0. - initial release
+#   2022.03.20 - 1.0.1. - некоторые изменения в названиях,
+#       - добавлено description в операторы,
+#       - store_subd если модификатор Subdivision Surface отсутствует на объекте - создается
+#           новый с View = 0, Render = 0
+#       - изменено расположение кнопок в панели
+#       - вывод сообщения в INFO
 
 import bpy
 from bpy.types import Operator, Panel
@@ -16,7 +22,7 @@ bl_info = {
     'name': 'SUBD_TOOL',
     'category': 'All',
     'author': 'Nikita Akimov',
-    'version': (1, 0, 0),
+    'version': (1, 0, 1),
     'blender': (2, 79, 0),
     'location': 'The 3D_View window - T-panel - the 1D tab',
     'wiki_url': 'https://github.com/Korchy/1d_subd_tool',
@@ -29,21 +35,45 @@ class SubdTool:
 
     @classmethod
     def store_subd(cls, context):
-        # View to Render in Subdivision Modifier
-        obj_subd = cls._sub_objects(context=context, selected=True)
-        modifiers = (modifier for obj in obj_subd for modifier in obj.modifiers
-                     if modifier.type == 'SUBSURF')
-        for modifier in modifiers:
-            modifier.render_levels = modifier.levels
+        # View to Render in Subdivision Modifier for selected objects
+        message = 'Subd objects stored: '
+        for obj in context.selected_objects:
+            if 'SUBSURF' not in (modifier.type for modifier in obj.modifiers):
+                modifier = obj.modifiers.new(
+                    name='Subsurf',
+                    type='SUBSURF'
+                )
+                modifier.render_levels = 0
+                modifier.levels = 0
+            else:
+                # View to Render
+                modifiers = (modifier for modifier in obj.modifiers
+                             if modifier.type == 'SUBSURF')
+                for modifier in modifiers:
+                    modifier.render_levels = modifier.levels
+        message += SubdTool.info_subd(context=context, selected=True)
+        return message
 
     @classmethod
     def view_subd(cls, context):
-        # Render to View in Subdivision Modifier
-        obj_subd = cls._sub_objects(context=context, selected=True)
-        modifiers = (modifier for obj in obj_subd for modifier in obj.modifiers
-                     if modifier.type == 'SUBSURF')
-        for modifier in modifiers:
-            modifier.levels = modifier.render_levels
+        # Render to View in Subdivision Modifier for selected objects
+        message = 'Subd objects stored: '
+        for obj in context.selected_objects:
+            if 'SUBSURF' not in (modifier.type for modifier in obj.modifiers):
+                modifier = obj.modifiers.new(
+                    name='Subsurf',
+                    type='SUBSURF'
+                )
+                modifier.render_levels = 0
+                modifier.levels = 0
+            else:
+                # Render to View
+                modifiers = (modifier for modifier in obj.modifiers
+                             if modifier.type == 'SUBSURF')
+                for modifier in modifiers:
+                    modifier.levels = modifier.render_levels
+        message += SubdTool.info_subd(context=context, selected=True)
+        return message
 
     @classmethod
     def select_subd(cls, context):
@@ -53,6 +83,7 @@ class SubdTool:
                                             in context.active_object.modifiers
                                             if modifier.type == 'SUBSURF'), None)
         if active_object_subd_modifier:
+            # active object has Subdivision modifier - select with same render_level
             render_levels_value = active_object_subd_modifier.render_levels
             # select the same
             obj_subd = cls._sub_objects(context=context)
@@ -64,6 +95,14 @@ class SubdTool:
                 for modifier in subd_modifiers:
                     if modifier.render_levels == render_levels_value:
                         obj.select = True
+        else:
+            # no Subdivision modifier on active object - select same
+            cls._deselect_all(context=context)
+            obj_no_subd = (obj for obj in context.blend_data.objects
+                           if 'SUBSURF' not in (modifier.type for modifier in obj.modifiers))
+            for obj in obj_no_subd:
+                obj.select = True
+        return str(len(context.selected_objects)) + ' objects selected'
 
     @staticmethod
     def _deselect_all(context):
@@ -84,6 +123,26 @@ class SubdTool:
                     if 'SUBSURF' in [modifier.type for modifier in obj.modifiers]
                     )
 
+    @classmethod
+    def info_subd(cls, context, selected):
+        # return count of objects with Subdivision Surface modifiers by render_level value
+        obj_subd = cls._sub_objects(
+            context=context,
+            selected=selected
+        )
+        levels = {}
+        modifiers = (modifier for obj in obj_subd for modifier in obj.modifiers
+                     if modifier.type == 'SUBSURF')
+        for modifier in modifiers:
+            if 'S' + str(modifier.render_levels) not in levels:
+                levels['S' + str(modifier.render_levels)] = 1
+            else:
+                levels['S' + str(modifier.render_levels)] += 1
+        levels_str = ''
+        for key in sorted(levels):
+            levels_str += '%s = %s ' % (key, levels[key])
+        return levels_str
+
 
 # --- OPS ----------------------------------------------------
 
@@ -91,35 +150,51 @@ class SubdTool:
 class SUBD_TOOL_OT_store_subd(Operator):
     bl_idname = 'subd_tool.store_subd'
     bl_label = 'Store Subd'
+    bl_description = 'Copy View to Render value for Subd modifier of every ' \
+                     'selected object or set zero Subd if is not set'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        SubdTool.store_subd(
+        message = SubdTool.store_subd(
             context=context
+        )
+        self.report(
+            type={'INFO'},
+            message=message
         )
         return {'FINISHED'}
 
 
 class SUBD_TOOL_OT_view_subd(Operator):
     bl_idname = 'subd_tool.view_subd'
-    bl_label = 'View Subd'
+    bl_label = 'Review Subd'
+    bl_description = 'Copy Render to View value for Subd modifier of every selected object'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        SubdTool.view_subd(
+        message = SubdTool.view_subd(
             context=context
+        )
+        self.report(
+            type={'INFO'},
+            message=message
         )
         return {'FINISHED'}
 
 
 class SUBD_TOOL_OT_select_subd(Operator):
     bl_idname = 'subd_tool.select_subd'
-    bl_label = 'Select Subd'
+    bl_label = 'Select same subd'
+    bl_description = 'Select objects with the same Render subd value'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        SubdTool.select_subd(
+        message = SubdTool.select_subd(
             context=context
+        )
+        self.report(
+            type={'INFO'},
+            message=message
         )
         return {'FINISHED'}
 
@@ -135,13 +210,15 @@ class SUBD_TOOL_PT_panel(Panel):
     bl_category = '1D'
 
     def draw(self, context):
-        self.layout.operator(
+        layout = self.layout
+        row = layout.row()
+        row.operator(
             operator='subd_tool.store_subd'
         )
-        self.layout.operator(
+        row.operator(
             operator='subd_tool.view_subd'
         )
-        self.layout.operator(
+        layout.operator(
             operator='subd_tool.select_subd'
         )
 

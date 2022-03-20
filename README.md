@@ -8,7 +8,9 @@
 
 Для всех выделенных объектов у модификатора Subdivision Surface выполняется перенос значения View в Render.
 
-**View Subd**
+Если у объекта нет модификатора Subdivision Surface, он добавляется со значениями View = 0, Render = 0
+
+**Review Subd**
 
 Для всех выделенных объектов у модификатора Subdivision Surface выполняется перенос значения Render в View.
 
