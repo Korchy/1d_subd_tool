@@ -16,6 +16,8 @@
 #       - изменен формат строки вывода в INFO
 #       - Review - Restore
 #       - добавлена принудительная перерисовка окон после вызова функций
+#   2022.03.20 - 1.0.3. - в restore добавлено условие, если Render и View равны, не производить
+#           присваивание
 
 import bpy
 from bpy.types import Operator, Panel
@@ -26,7 +28,7 @@ bl_info = {
     'name': '1D SUBD_TOOL',
     'category': 'All',
     'author': 'Nikita Akimov',
-    'version': (1, 0, 2),
+    'version': (1, 0, 3),
     'blender': (2, 79, 0),
     'location': 'The 3D_View window - T-panel - the 1D tab',
     'wiki_url': 'https://github.com/Korchy/1d_subd_tool',
@@ -54,14 +56,15 @@ class SubdTool:
                 modifiers = (modifier for modifier in obj.modifiers
                              if modifier.type == 'SUBSURF')
                 for modifier in modifiers:
-                    modifier.render_levels = modifier.levels
+                    if modifier.render_levels != modifier.levels:
+                        modifier.render_levels = modifier.levels
         message += SubdTool.info_subd(context=context, selected=True)
         # force redraw areas
         cls._redraw_areas(context=context)
         return message
 
     @classmethod
-    def view_subd(cls, context):
+    def restore_subd(cls, context):
         # Render to View in Subdivision Modifier for selected objects
         message = 'Subd objects stored: '
         for obj in context.selected_objects:
@@ -77,7 +80,8 @@ class SubdTool:
                 modifiers = (modifier for modifier in obj.modifiers
                              if modifier.type == 'SUBSURF')
                 for modifier in modifiers:
-                    modifier.levels = modifier.render_levels
+                    if modifier.levels != modifier.render_levels:
+                        modifier.levels = modifier.render_levels
         message += SubdTool.info_subd(context=context, selected=True)
         # force redraw areas
         cls._redraw_areas(context=context)
@@ -192,7 +196,7 @@ class SUBD_TOOL_OT_view_subd(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        message = SubdTool.view_subd(
+        message = SubdTool.restore_subd(
             context=context
         )
         self.report(
