@@ -12,6 +12,10 @@
 #           новый с View = 0, Render = 0
 #       - изменено расположение кнопок в панели
 #       - вывод сообщения в INFO
+#   2022.03.20 - 1.0.2. - добавление 1D префикса в название и имя файла
+#       - изменен формат строки вывода в INFO
+#       - Review - Restore
+#       - добавлена принудительная перерисовка окон после вызова функций
 
 import bpy
 from bpy.types import Operator, Panel
@@ -19,10 +23,10 @@ from bpy.utils import register_class, unregister_class
 
 
 bl_info = {
-    'name': 'SUBD_TOOL',
+    'name': '1D SUBD_TOOL',
     'category': 'All',
     'author': 'Nikita Akimov',
-    'version': (1, 0, 1),
+    'version': (1, 0, 2),
     'blender': (2, 79, 0),
     'location': 'The 3D_View window - T-panel - the 1D tab',
     'wiki_url': 'https://github.com/Korchy/1d_subd_tool',
@@ -52,6 +56,8 @@ class SubdTool:
                 for modifier in modifiers:
                     modifier.render_levels = modifier.levels
         message += SubdTool.info_subd(context=context, selected=True)
+        # force redraw areas
+        cls._redraw_areas(context=context)
         return message
 
     @classmethod
@@ -73,12 +79,15 @@ class SubdTool:
                 for modifier in modifiers:
                     modifier.levels = modifier.render_levels
         message += SubdTool.info_subd(context=context, selected=True)
+        # force redraw areas
+        cls._redraw_areas(context=context)
         return message
 
     @classmethod
     def select_subd(cls, context):
         # select objects with Render = Render in active object
-        # render subdivision value from active object
+        render_levels_value = 0
+        # subdivision value from active object
         active_object_subd_modifier = next((modifier for modifier
                                             in context.active_object.modifiers
                                             if modifier.type == 'SUBSURF'), None)
@@ -102,7 +111,10 @@ class SubdTool:
                            if 'SUBSURF' not in (modifier.type for modifier in obj.modifiers))
             for obj in obj_no_subd:
                 obj.select = True
-        return str(len(context.selected_objects)) + ' objects selected'
+        # force redraw areas
+        cls._redraw_areas(context=context)
+        return 'S' + str(render_levels_value) + \
+               ' ' + str(len(context.selected_objects)) + ' objects selected'
 
     @staticmethod
     def _deselect_all(context):
@@ -140,9 +152,16 @@ class SubdTool:
                 levels['S' + str(modifier.render_levels)] += 1
         levels_str = ''
         for key in sorted(levels):
-            levels_str += '%s = %s ' % (key, levels[key])
+            # levels_str += '%s = %s ' % (key, levels[key])
+            levels_str += '%s/%s ' % (levels[key], key)
         return levels_str
 
+    @staticmethod
+    def _redraw_areas(context):
+        # refresh screen areas
+        if context.screen:
+            for area in context.screen.areas:
+                area.tag_redraw()
 
 # --- OPS ----------------------------------------------------
 
@@ -167,8 +186,9 @@ class SUBD_TOOL_OT_store_subd(Operator):
 
 class SUBD_TOOL_OT_view_subd(Operator):
     bl_idname = 'subd_tool.view_subd'
-    bl_label = 'Review Subd'
-    bl_description = 'Copy Render to View value for Subd modifier of every selected object'
+    bl_label = 'Restore Subd'
+    bl_description = 'Copy Render to View value for Subd modifier of every ' \
+                     'selected object or set zero Subd if is not set'
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -204,7 +224,7 @@ class SUBD_TOOL_OT_select_subd(Operator):
 
 class SUBD_TOOL_PT_panel(Panel):
     bl_idname = 'SUBD_TOOL_PT_panel'
-    bl_label = 'Subd Tool'
+    bl_label = '1D Subd Tool'
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'TOOLS'
     bl_category = '1D'
