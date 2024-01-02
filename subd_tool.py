@@ -28,7 +28,7 @@ bl_info = {
     'name': '1D SUBD_TOOL',
     'category': 'All',
     'author': 'Nikita Akimov',
-    'version': (1, 0, 3),
+    'version': (1, 0, 4),
     'blender': (2, 79, 0),
     'location': 'The 3D_View window - T-panel - the 1D tab',
     'wiki_url': 'https://github.com/Korchy/1d_subd_tool',
@@ -167,8 +167,22 @@ class SubdTool:
             for area in context.screen.areas:
                 area.tag_redraw()
 
-# --- OPS ----------------------------------------------------
+    @staticmethod
+    def ui(layout):
+        # ui panel
+        row = layout.row()
+        row.operator(
+            operator='subd_tool.store_subd'
+        )
+        row.operator(
+            operator='subd_tool.view_subd'
+        )
+        layout.operator(
+            operator='subd_tool.select_subd'
+        )
 
+
+# --- OPS ----------------------------------------------------
 
 class SUBD_TOOL_OT_store_subd(Operator):
     bl_idname = 'subd_tool.store_subd'
@@ -234,31 +248,24 @@ class SUBD_TOOL_PT_panel(Panel):
     bl_category = '1D'
 
     def draw(self, context):
-        layout = self.layout
-        row = layout.row()
-        row.operator(
-            operator='subd_tool.store_subd'
-        )
-        row.operator(
-            operator='subd_tool.view_subd'
-        )
-        layout.operator(
-            operator='subd_tool.select_subd'
+        SubdTool.ui(
+            layout=self.layout
         )
 
 
 # --- REGISTER ----------------------------------------------------
 
-
-def register():
+def register(ui=True):
     register_class(SUBD_TOOL_OT_store_subd)
     register_class(SUBD_TOOL_OT_view_subd)
     register_class(SUBD_TOOL_OT_select_subd)
-    register_class(SUBD_TOOL_PT_panel)
+    if ui:
+        register_class(SUBD_TOOL_PT_panel)
 
 
-def unregister():
-    unregister_class(SUBD_TOOL_PT_panel)
+def unregister(ui=True):
+    if ui:
+        unregister_class(SUBD_TOOL_PT_panel)
     unregister_class(SUBD_TOOL_OT_select_subd)
     unregister_class(SUBD_TOOL_OT_view_subd)
     unregister_class(SUBD_TOOL_OT_store_subd)

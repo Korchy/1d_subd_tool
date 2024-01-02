@@ -2,7 +2,7 @@
 
 Набор инструментов в Blender для управления подразделениями.
 
-Функционал
+Add-on functionality
 -
 **Store Subd**
 
@@ -22,7 +22,11 @@
 
 Если у активного объекта нет модификатора Subdivision Surface выбираются все объекты без этого модификатора.
 
-Версия Blender
+Blender version
 -
 2.79
 
+Version history
+-
+1.0.4
+- Integrated to the NA 1D Tools
